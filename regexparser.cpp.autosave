@@ -1,0 +1,177 @@
+#include "regexparser.h"
+
+RegExParser::RegExParser(QObject *parent) : QObject(parent)
+{
+
+}
+
+void RegExParser::parseString(QString string)
+{
+    // clean up and simplify the string format
+    string.replace( " ", "" ); // remove spaces
+
+    int openingParenthTotal=0;
+    int closingParenthTotal=0;
+    int numComparisons=0;
+    int numVariables=0;
+    int numConstants=0;
+    int totalMatchLength=0;
+
+    for(int intIter = 0 ; intIter < regexStrings.size() ; intIter++){
+        QRegularExpression regex(regexStrings[intIter]);
+        QRegularExpressionMatchIterator regExIterator = regex.globalMatch(string);
+        while (regExIterator.hasNext()) {
+            QRegularExpressionMatch match = regExIterator.next();
+            if(match.hasMatch()){
+                Matching * words = new Matching(this);
+                switch (intIter) {
+                case VARIABLE: numVariables++; words->m_matchTypeId = words->VARIABLE; break;
+                case CONSTANT: numConstants++; words->m_matchTypeId = words->CONSTANT; break;
+                case MATH_OPERATOR: words->m_matchTypeId = words->OPERATOR; break;
+                case POWER_OPERATOR: words->m_matchTypeId = words->OPERATOR; break;
+                case COMPARISON_OPERATOR:numComparisons++; words->m_matchTypeId = words->OPERATOR; break;
+                case OPENING_PARENTHESIS:openingParenthTotal++; words->m_matchTypeId = words->OTHER; break;
+                case CLOSING_PARENTHESIS:closingParenthTotal++; words->m_matchTypeId = words->OTHER; break;
+                default: break;
+                }
+                words->m_matches << match.captured(0);
+                words->m_matchStart = match.capturedStart();
+                words->m_matchEnd = match.capturedEnd();
+                totalMatchLength += abs(match.capturedEnd()-match.capturedStart());
+                appendMatchingItem(words);
+            }
+        }
+    }
+
+    /*
+     Need more checks for:
+     1. parenthesis in the wrong place
+        a. same number of open/close on either side of comparison
+        b. outside of parenthesis must touch an operator.  inside must touch value or variable.
+     2. operators have the required operands. a*b requires two, not(a) requires one
+     */
+
+
+    // Check for errors, if no errors then convert to z3 expression
+    bool parseError=false;
+    QString parseErrorMessage = "";
+    if(numVariables==0){parseError=true;parseErrorMessage+="Error: Must have at least one variable!\n";}
+    if(numComparisons!=1){parseError=true;parseErrorMessage+="Error: One comparison operator is required/allowed!\n";}
+    if(openingParenthTotal!=closingParenthTotal){parseError=true;parseErrorMessage+="Error: Parenthesis not balanced!\n";}
+    if(totalMatchLength!=string.length()){parseError=true;parseErrorMessage+="Error: Match length does not match string!\n";}
+    for (int i = 0 ; i < m_wordSet.size();i++){
+        for( int j = 0 ; j < m_wordSet.size();j++){
+            if(i>=j){
+                continue;
+            }else if (m_wordSet[i]->m_matchStart < m_wordSet[j]->m_matchStart &&
+                    m_wordSet[j]->m_matchStart < m_wordSet[i]->m_matchEnd){
+               parseError=true;
+               parseErrorMessage+="Error: Overlapping matches!\n";
+            }
+        }
+    }
+
+    if(parseError){
+        qDebug().noquote()<<"Parse error:\n"<<parseErrorMessage;
+    }else{
+        // finally, order the word set like the original string
+        for (int i = 0 ; i < m_wordSet.size();i++){
+            for( int j = 0 ; j < m_wordSet.size();j++){
+                if(i>=j){
+                    continue;
+                }else if (m_wordSet[i]->m_matchStart > m_wordSet[j]->m_matchStart){
+                    m_wordSet.swapItemsAt(i,j);
+                }
+            }
+        }
+        // convert each item in stringlist to an item in QVector<z3 expr>
+        // solver will later concatenate the vector into one expression
+        // solver will need to generate multiple versions at runtime of differential equations
+        // differential equaitons will have to have distinct variables dx_(n)/dt_(n) = [x_(n-1)-x(n)]/[t_(n-1)-t(n)]
+        // dx_(n+1)/dt_(n+1) = [x_(n)-x(n+1)]/[t_(n)-t(n+1)]
+        qDebug()<<"final match set: ";
+        //print set to check if sorted
+        for (int i = 0; i<m_wordSet.size();i++){
+            qDebug()<<"     Match Start:"<<m_wordSet[i]->m_matchStart;
+            qDebug()<<"     Matches:"<<m_wordSet[i]->m_matches;
+        }
+    }
+}
+
+QVector<Matching *> RegExParser::recurseOnString(QString inputString, int count)
+{
+    QVector<Matching*> partialStringVector;
+    if(inputString.contains("==")){
+        qDebug()<<"Level: "<<count<<"String: "<<inputString;
+        int matchStart = inputString.indexOf("==");
+        int matchLength = QString("==").length()-1;
+        int matchEnd = matchStart+matchLength;
+        QString partialString0 = inputString.section("",0,matchStart);
+        QString match=inputString.section("",matchStart+1,matchEnd+1);
+        QString partialString1 = inputString.section("",matchEnd+matchLength+1);
+        partialStringVector.append(recurse(partialString0,count++));
+        partialStringVector.append(match);
+        partialStringVector.append(recurse(partialString1,count++));
+        return partialStringVector;
+    }
+    if(inputString.contains("+")){
+        qDebug()<<"Level: "<<count<<"String: "<<inputString;
+        int matchStart = inputString.indexOf("+");
+        int matchLength = QString("+").length();
+        int matchEnd = inputString.indexOf("+")+matchLength-1;
+        QString partialString0 = inputString.section("",0,matchStart);
+        QString match=inputString.section("",matchStart+1,matchEnd+1);
+        QString partialString1 = inputString.section("",matchEnd+matchLength+1);
+        partialStringVector.append(recurse(partialString0,count++));
+        partialStringVector.append(match);
+        partialStringVector.append(recurse(partialString1,count++));
+        return partialStringVector;
+    }
+    //constant
+    if(inputString.contains("1")){
+        qDebug()<<"Level: "<<count<<"String: "<<inputString;
+        int matchStart = inputString.indexOf("1");
+        int matchLength = QString("1").length();
+        int matchEnd = inputString.indexOf("1")+matchLength-1;
+        QString match=inputString.section("",matchStart+1,matchEnd+1);
+        partialStringVector.append(match);
+        return partialStringVector;
+    }
+    //variable
+    if(inputString.contains("x")){
+        qDebug()<<"Level: "<<count<<"String: "<<inputString;
+        int matchStart = inputString.indexOf("x");
+        int matchLength = QString("x").length();
+        int matchEnd = inputString.indexOf("x")+matchLength-1;
+        QString match=inputString.section("",matchStart+1,matchEnd+1);
+        partialStringVector.append(match);
+        return partialStringVector;
+    }
+    //variable
+    if(inputString.contains("y")){
+        qDebug()<<"Level: "<<count<<"String: "<<inputString;
+        int matchStart = inputString.indexOf("y");
+        int matchLength = QString("y").length();
+        int matchEnd = inputString.indexOf("y")+matchLength-1;
+        QString match=inputString.section("",matchStart+1,matchEnd+1);
+        partialStringVector.append(match);
+        return partialStringVector;
+    }
+    if(inputString.length()==0){
+        return partialStringVector;
+    }
+    qDebug()<<"Something went wrong with parsing: ";
+    partialStringVector.append("parsing failure!");
+    return partialStringVector;
+}
+
+void RegExParser::appendMatchingItem()
+{
+    Matching * matchingItem = new Matching(this);
+    appendMatchingItem(matchingItem);
+}
+
+void RegExParser::appendMatchingItem(Matching *matchingItem)
+{
+    m_wordSet.append(matchingItem);
+}

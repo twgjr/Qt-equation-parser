@@ -2,7 +2,8 @@
 #include <QDebug>
 //#include <QRegularExpression>
 //#include <QRegularExpressionMatchIterator>
-#include "regexparser.h"
+//#include "regexmatcher.h"
+#include "equationparser.h"
 
 int main(int argc, char *argv[])
 {
@@ -13,8 +14,12 @@ int main(int argc, char *argv[])
         QTextStream s(stdin);
         equationStringInput = s.readLine();
 
-        RegExParser regexparser;
-        regexparser.parseString(equationStringInput);
+        EquationParser equationParser;
+        equationParser.parseEquation(equationStringInput,0);
+        QVector<ExpressionItem*>expressionSet = equationParser.expressionSet();
+        for (int i = 0; i<expressionSet.size();i++){
+            qDebug()<<"     Match String:"<<expressionSet[i]->string();
+        }
     }
     while (equationStringInput != "exit");
 

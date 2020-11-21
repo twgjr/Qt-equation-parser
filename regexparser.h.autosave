@@ -35,6 +35,8 @@ public:
     };
 
     void parseString(QString string);
+    QVector<Matching*> recurseOnString(QString inputString, int count);
+    void split();
 
     void appendMatchingItem();
     void appendMatchingItem(Matching * matchingItem);
