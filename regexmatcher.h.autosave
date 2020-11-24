@@ -1,0 +1,30 @@
+#ifndef REGEXPARSER_H
+#define REGEXPARSER_H
+
+#include <QObject>
+#include <QDebug>
+#include <QRegularExpression>
+#include <QRegularExpressionMatchIterator>
+#include "expressionitem.h"
+
+class RegExMatcher : public QObject
+{
+    Q_OBJECT
+public:
+    explicit RegExMatcher(QObject *parent = nullptr);
+
+    struct RegExpr{
+        QString exprCase;
+        QString regExStr;
+    };
+    
+    QVector<RegExpr> m_regExList;
+    void initRegExList();
+    RegExpr setRegExpr(QString exprCase,QString regExStr);
+
+    ExpressionItem* matchString(QString string);
+
+private:
+};
+
+#endif // REGEXPARSER_H

@@ -11,7 +11,7 @@ SOURCES += \
         equationparser.cpp \
         expressionitem.cpp \
         main.cpp \
-        regexmatcher.cpp
+        regexlist.cpp
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -21,4 +21,4 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 HEADERS += \
     equationparser.h \
     expressionitem.h \
-    regexmatcher.h
+    regexlist.h

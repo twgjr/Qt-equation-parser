@@ -2,7 +2,7 @@
 
 ExpressionItem::ExpressionItem(QObject *parent) : QObject(parent)
 {
-
+    //qDebug()<<"ExpressionItem created";
 }
 
 QString ExpressionItem::string() const

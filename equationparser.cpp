@@ -31,72 +31,131 @@ void EquationParser::appendExpressionItem(ExpressionItem *expressionItem)
     m_expressionSet.append(expressionItem);
 }
 
-QVector<ExpressionItem *> EquationParser::parseEquation(QString equationString, int count)
+void EquationParser::parseEquation(QString equationString)
 {
     QVector<ExpressionItem *> expressionVector;
-    if(equationString.contains("==")){
-        qDebug()<<"Level: "<<count<<"String: "<<equationString;
-        int matchStart = equationString.indexOf("==");
-        int matchLength = QString("==").length()-1;
-        int matchEnd = matchStart+matchLength;
-        QString partialString0 = equationString.section("",0,matchStart);
-        QString match=equationString.section("",matchStart+1,matchEnd+1);
-        QString partialString1 = equationString.section("",matchEnd+matchLength+1);
-        expressionVector.append(parseEquation(partialString0,count++));
-        appendExpressionItem(match,0,matchStart,matchEnd,matchLength);
-        expressionVector.append(parseEquation(partialString1,count++));
-        return expressionVector;
-    }
-    if(equationString.contains("+")){
-        qDebug()<<"Level: "<<count<<"String: "<<equationString;
-        int matchStart = equationString.indexOf("+");
-        int matchLength = QString("+").length();
-        int matchEnd = equationString.indexOf("+")+matchLength-1;
-        QString partialString0 = equationString.section("",0,matchStart);
-        QString match=equationString.section("",matchStart+1,matchEnd+1);
-        QString partialString1 = equationString.section("",matchEnd+matchLength+1);
-        expressionVector.append(parseEquation(partialString0,count++));
-        appendExpressionItem(match,0,matchStart,matchEnd,matchLength);
-        expressionVector.append(parseEquation(partialString1,count++));
-        return expressionVector;
-    }
-    //constant
-    if(equationString.contains("1")){
-        qDebug()<<"Level: "<<count<<"String: "<<equationString;
-        int matchStart = equationString.indexOf("1");
-        int matchLength = QString("1").length();
-        int matchEnd = equationString.indexOf("1")+matchLength-1;
-        QString match=equationString.section("",matchStart+1,matchEnd+1);
-        appendExpressionItem(match,0,matchStart,matchEnd,matchLength);
-        return expressionVector;
-    }
-    //variable
-    if(equationString.contains("x")){
-        qDebug()<<"Level: "<<count<<"String: "<<equationString;
-        int matchStart = equationString.indexOf("x");
-        int matchLength = QString("x").length();
-        int matchEnd = equationString.indexOf("x")+matchLength-1;
-        QString match=equationString.section("",matchStart+1,matchEnd+1);
-        appendExpressionItem(match,0,matchStart,matchEnd,matchLength);
-        return expressionVector;
-    }
-    //variable
-    if(equationString.contains("y")){
-        qDebug()<<"Level: "<<count<<"String: "<<equationString;
-        int matchStart = equationString.indexOf("y");
-        int matchLength = QString("y").length();
-        int matchEnd = equationString.indexOf("y")+matchLength-1;
-        QString match=equationString.section("",matchStart+1,matchEnd+1);
-        appendExpressionItem(match,0,matchStart,matchEnd,matchLength);
-        return expressionVector;
+    // clean up and simplify the string format
+    equationString.replace( " ", "" ); // remove spaces
+
+    //go down the checklist
+    m_expressionSet = processSyntaxTree(equationString,0);
+}
+
+QVector<ExpressionItem *> EquationParser::processSyntaxTree(QString equationString, int count)
+{
+    QVector<ExpressionItem *> expressionVector;
+    for(int index = 1; index < m_regExList.formats().size() ; index++){
+        QRegularExpression regex(m_regExList.formats()[index].regExStr);
+        QRegularExpressionMatch match = regex.match(equationString);
+        if(match.hasMatch()){
+            QString matchString = match.captured(0);
+            int start = match.capturedStart();
+            int end = match.capturedEnd();
+            int id = index;
+            int length = matchString.length();
+
+            //no-match case 0 is skipped, checked in parseEquation() after complete parsing
+            switch (index) {
+            // Parenthesis
+            case 1:{
+                if((length+2)!=equationString.length()){
+                    break;
+                } else {
+                    expressionVector = branchInside(equationString,matchString,count,id,start,end,length);
+                    return expressionVector;
+                }
+            }
+                // Equality
+            case 2:{
+                expressionVector = branchOutside(equationString,matchString,count,id,start,end,length);
+                return expressionVector;
+            }
+                // Addition
+            case 10:{
+                expressionVector = branchOutside(equationString,matchString,count,id,start,end,length);
+                return expressionVector;
+            }
+                // Variable
+            case 12:{
+                expressionVector.append(makeLeaf(matchString,id,start,end,length,count));
+                return expressionVector;
+            }
+                // Constant
+            case 13:{
+                expressionVector.append(makeLeaf(matchString,id,start,end,length,count));
+                return expressionVector;
+            }
+            }
+        }
     }
     if(equationString.length()==0){
-        return expressionVector;
+        return expressionVector; // empty expression vector
     }
-    qDebug()<<"Something went wrong with parsing: ";
-    appendExpressionItem("parse failure",0,0,0,0);
+
     return expressionVector;
 }
+
+ExpressionItem * EquationParser::makeLeaf(QString matchString,
+                            int id,
+                            int start,
+                            int end,
+                            int length,
+                            int count)
+{
+
+    qDebug()<<"Level: "<<count<<", adding leaf: "<<matchString;
+    //appendExpressionItem(matchString,id,start,end,length);
+    ExpressionItem * expressionItem = new ExpressionItem;
+    expressionItem->setString(matchString);
+    expressionItem->setMatchTypeId(id);
+    expressionItem->setMatchStart(start);
+    expressionItem->setMatchEnd(end);
+    expressionItem->setMatchLength(length);
+    return expressionItem;
+}
+
+QVector<ExpressionItem *> EquationParser::branchInside(QString equationString,
+                                                      QString matchString,
+                                                      int level,
+                                                      int id,
+                                                      int start,
+                                                      int end,
+                                                      int length)
+{
+    QVector<ExpressionItem *> expressionVector;
+    qDebug()<<"Level: "<<level<<", branching inside: "<<matchString<<" from: "<<equationString;
+    QString sectionStr=equationString.section("",start+1,end+1);
+    expressionVector.append(makeLeaf("(",id,start,end,length,level+1));
+    expressionVector.append(processSyntaxTree(sectionStr,level+1));
+    expressionVector.append(makeLeaf(")",id,start,end,length,level+1));
+    return expressionVector;
+}
+
+QVector<ExpressionItem *> EquationParser::branchOutside(QString equationString,
+                                                      QString matchString,
+                                                      int level,
+                                                      int id,
+                                                      int start,
+                                                      int end,
+                                                      int length)
+{
+    QVector<ExpressionItem *> expressionVector;
+    qDebug()<<"Level: "<<level<<", branching outside: "<<matchString<<" from: "<<equationString;
+
+    //branch left
+    QString sectionStr0=equationString.section("",0,start);
+    expressionVector.append(processSyntaxTree(sectionStr0,level+1));
+
+    //add match (leaf)
+    expressionVector.append(makeLeaf(matchString,id,start,end,length,level+1));
+
+    //branch right
+    QString sectionStr1=equationString.section("",end+1);
+    expressionVector.append(processSyntaxTree(sectionStr1,level+1));
+
+    return expressionVector;
+}
+
 
 QVector<ExpressionItem *> EquationParser::expressionSet() const
 {
