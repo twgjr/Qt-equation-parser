@@ -22,3 +22,8 @@ HEADERS += \
     equationparser.h \
     expressionitem.h \
     regexlist.h
+
+win32: LIBS += -L$$PWD/../libbuilds/z3/z3-z3-4.8.8-install/lib/ -llibz3
+
+INCLUDEPATH += $$PWD/../libbuilds/z3/z3-z3-4.8.8-install/include
+DEPENDPATH += $$PWD/../libbuilds/z3/z3-z3-4.8.8-install/include

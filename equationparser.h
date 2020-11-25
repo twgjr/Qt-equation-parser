@@ -5,6 +5,7 @@
 #include <QDebug>
 #include "regexlist.h"
 #include "expressionitem.h"
+#include "z3++.h"
 
 class EquationParser : public QObject
 {
@@ -12,46 +13,47 @@ class EquationParser : public QObject
 public:
     explicit EquationParser(QObject *parent = nullptr);
 
-    void appendExpressionItem(ExpressionItem *expressionItem);
-    void appendExpressionItem();
-    void appendExpressionItem(QString string,
-                              int matchTypeId,
-                              int matchStart,
-                              int matchEnd,
-                              int matchLength);
-
     void parseEquation(QString equationString);//pre and post recursion processing
-    QVector<ExpressionItem*> processSyntaxTree(QString equationString, int count); //recursion for AST
-    ExpressionItem * makeLeaf(QString matchString,
-                            int id,
-                            int start,
-                            int end,
-                            int length,
-                            int count);
+    int processSyntaxTree(QString equationString,
+                           int count,
+                           ExpressionItem * thisNode,
+                           ExpressionItem * parentNode); //recursion for AST
+    int makeLeaf(QString matchString,
+                  int count,
+                  ExpressionItem * thisNode,
+                  ExpressionItem * parentNode);
+    int makeNodeBranchOut(QString equationString,
+                           QString matchString,
+                           int start,
+                           int end,
+                           int count,
+                           ExpressionItem * thisNode,
+                           ExpressionItem * parentNode);
+
     QVector<ExpressionItem*> branchInside(QString equationString,
                                          QString matchString,
                                          int count,
-                                         int id,
                                          int start,
-                                         int end,
-                                         int length);
+                                         int end);
+
     QVector<ExpressionItem*> branchOutside(QString equationString,
                                          QString matchString,
                                          int count,
-                                         int id,
                                          int start,
-                                         int end,
-                                         int length);
+                                         int end);
 
-    QVector<ExpressionItem *> expressionSet() const;
+    QVector<ExpressionItem*> branchReplace(QString equationString,
+                                         QString matchString,
+                                         int count,
+                                         int start,
+                                         int end);
 
-    enum RecurseType{
-        ONE_OPERAND,
-        TWO_OPERAND
-    };
+    void compileZ3Expression();
+
+    ExpressionItem * expressionGraph();
 
 private:
-    QVector<ExpressionItem*> m_expressionSet;
+    ExpressionItem * m_expressionGraph;
     RegExList m_regExList;
 };
 
