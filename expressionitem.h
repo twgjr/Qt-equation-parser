@@ -12,8 +12,8 @@ public:
     explicit ExpressionItem(QObject *parent = nullptr);
 
     QString m_string="";
-    QVector<ExpressionItem *> m_children;
     ExpressionItem * m_parent;
+    QVector<ExpressionItem*> m_children;
 
 private:
 

@@ -4,12 +4,18 @@
 
 //visit all children to reassemble the string
 QString concatGraph(ExpressionItem * expressionItem){
-    QString string;
-    for (int i = 0; i < expressionItem->m_children.size();i++){
-        string += concatGraph(expressionItem->m_children[i]);
-        if(expressionItem->m_children.isEmpty()){
-            return expressionItem->m_string;
-        }
+    QString string="";
+    if(expressionItem->m_children.size() == 0){
+        return expressionItem->m_string;
+    }
+    if(expressionItem->m_children.size() == 1){
+        string += expressionItem->m_string;
+        string += concatGraph(expressionItem->m_children[0]);
+    }
+    if(expressionItem->m_children.size() == 2){
+        string += concatGraph(expressionItem->m_children[0]);
+        string += expressionItem->m_string;
+        string += concatGraph(expressionItem->m_children[1]);
     }
     return string;
 }
@@ -17,7 +23,6 @@ QString concatGraph(ExpressionItem * expressionItem){
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-
 
     QString equationStringInput = "";
     do{
@@ -32,15 +37,13 @@ int main(int argc, char *argv[])
         EquationParser equationParser;
         qDebug()<<"calling parse equation.";
         equationParser.parseEquation(equationStringInput);
-        ExpressionItem * expressionGraph = equationParser.expressionGraph();
+        ExpressionItem * exprGraph = equationParser.expressionGraph();
         qDebug()<<"Match...";
-        QString concatString = concatGraph(expressionGraph);
+        QString concatString = concatGraph(exprGraph);
 
         if(QString::compare(concatString,equationStringInput)==0){
             // concat into a z3 expression
-
             // load into z3 expression vector
-
         } else {
             //error
             qDebug()<<"Invalid equation";

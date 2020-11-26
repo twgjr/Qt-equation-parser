@@ -14,43 +14,27 @@ public:
     explicit EquationParser(QObject *parent = nullptr);
 
     void parseEquation(QString equationString);//pre and post recursion processing
-    int processSyntaxTree(QString equationString,
-                           int count,
-                           ExpressionItem * thisNode,
+    bool processSyntaxTree(QString equationString,
+                           int depth,
                            ExpressionItem * parentNode); //recursion for AST
-    int makeLeaf(QString matchString,
-                  int count,
-                  ExpressionItem * thisNode,
+    bool makeLeaf(QString matchString,
+                  int depth,
                   ExpressionItem * parentNode);
-    int makeNodeBranchOut(QString equationString,
+    bool makeNodeBranchOut(QString equationString,
                            QString matchString,
                            int start,
                            int end,
-                           int count,
-                           ExpressionItem * thisNode,
+                           int depth,
                            ExpressionItem * parentNode);
-
-    QVector<ExpressionItem*> branchInside(QString equationString,
-                                         QString matchString,
-                                         int count,
-                                         int start,
-                                         int end);
-
-    QVector<ExpressionItem*> branchOutside(QString equationString,
-                                         QString matchString,
-                                         int count,
-                                         int start,
-                                         int end);
-
-    QVector<ExpressionItem*> branchReplace(QString equationString,
-                                         QString matchString,
-                                         int count,
-                                         int start,
-                                         int end);
+    bool makeNodeBranchIn(QString equationString,
+                          QString matchString,
+                          int start,
+                          int end,
+                          int depth,
+                          ExpressionItem * parentNode);
 
     void compileZ3Expression();
-
-    ExpressionItem * expressionGraph();
+    ExpressionItem *expressionGraph();
 
 private:
     ExpressionItem * m_expressionGraph;

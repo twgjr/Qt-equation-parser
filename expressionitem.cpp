@@ -2,5 +2,6 @@
 
 ExpressionItem::ExpressionItem(QObject *parent) : QObject(parent)
 {
-    //qDebug()<<"ExpressionItem created";
+    qDebug()<<"ExpressionItem created";
 }
+
